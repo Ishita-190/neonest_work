@@ -1,4 +1,4 @@
-import { toast } from "react-hot-toast";
+import { toast } from "react-toastify";
 
 class NotificationService {
   constructor() {
@@ -183,7 +183,7 @@ class NotificationService {
         toast.error(message);
         break;
       case "loading":
-        toast.loading(message);
+        toast.info(message);
         break;
       default:
         toast(message);
