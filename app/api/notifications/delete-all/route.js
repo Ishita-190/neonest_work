@@ -1,9 +1,9 @@
 // app/api/notifications/delete-all/route.js
 
 import { NextResponse } from "next/server";
-import { connectToDatabase } from "../../../lib/mongodb";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../../api/auth/[...nextauth]/route";
+import { connectToDatabase } from "@/lib/mongodb"; // Adjust path as needed
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // Adjust path as needed
 
 export async function DELETE(request) {
   try {
