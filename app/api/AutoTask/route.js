@@ -15,11 +15,11 @@ import {
 import { cloudinary } from "@/lib/cloudinary";
 import connectDB from "@/lib/connectDB";
 
+// Initialize AI model
 const genAi = new GoogleGenerativeAI(process.env.GEMINI_API);
 
 export async function POST(req) {
   await connectDB(); 
-
   const errorMessage = { isAction: false, request: "failed" };
 
   try {
@@ -47,6 +47,7 @@ export async function POST(req) {
       return Response.json({ ...errorMessage, actionName: "Authentication Failed" }, { status: 401 });
     }
 
+    // Upload file to Cloudinary
     const uploadFile = async () => {
       if (!file) return null;
 
@@ -67,6 +68,7 @@ export async function POST(req) {
       return { type: result.resource_type, url: result.secure_url };
     };
 
+    // Save data based on action type
     const saveData = async (task) => {
       switch (task.actionName.toLowerCase()) {
         case "growth":
