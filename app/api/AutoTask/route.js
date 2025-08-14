@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import JSONAgent from "@/lib/agent";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import User from "@/app/models/User.model";
@@ -29,102 +30,95 @@ export async function POST(req) {
     const time = formData.get("time");
 
     if (!message || message.length < 9) {
-      return Response.json({ ...errorMessage, actionName: "Too Few Information" }, { status: 400 });
+      return NextResponse.json(
+        { ...errorMessage, actionName: "Too Few Information" },
+        { status: 400 }
+      );
     }
 
     const agent = new JSONAgent({ model: genAi });
     const date = new Date();
-    const prompt = `${message}. The date is ${date.toUTCString()} and time is ${time ? time : date.toTimeString()}.`;
+    const prompt = `${message}. The date is ${date.toUTCString()} and time is ${time || date.toTimeString()}.`;
 
     const agent_reply = await agent.getResponse(prompt);
     console.log("Agent reply:", agent_reply);
     console.log("Prompt:", prompt);
 
-    const user = await authenticateToken(req);
-    const userExists = await User.findById(user?.user?.id);
+    const authData = await authenticateToken(req);
+    const currentUser = authData?.user;
+    const userExists = await User.findById(currentUser?.id);
 
-    if (!user || !userExists || !user?.user?.id) {
-      return Response.json({ ...errorMessage, actionName: "Authentication Failed" }, { status: 401 });
+    if (!currentUser || !userExists) {
+      return NextResponse.json(
+        { ...errorMessage, actionName: "Authentication Failed" },
+        { status: 401 }
+      );
     }
 
     // Upload file to Cloudinary
     const uploadFile = async () => {
       if (!file) return null;
 
-      const buffer = await file.arrayBuffer();
-      const bytes = Buffer.from(buffer);
+      try {
+        const buffer = Buffer.from(await file.arrayBuffer());
 
-      const result = await new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          { resource_type: "auto" },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          }
-        );
-        stream.end(bytes);
-      });
-
-      return { type: result.resource_type, url: result.secure_url };
+        return await new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            { resource_type: "auto" },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve({ type: result.resource_type, url: result.secure_url });
+            }
+          );
+          stream.end(buffer);
+        });
+      } catch (err) {
+        console.error("Cloudinary upload failed:", err);
+        return null;
+      }
     };
 
     // Save data based on action type
     const saveData = async (task) => {
-      switch (task.actionName.toLowerCase()) {
+      const action = task.actionName?.toLowerCase();
+      switch(action) {
         case "growth":
-          return await saveGrowth(task, user?.user);
+          return await saveGrowth(task, currentUser);
         case "feeding":
-          return await saveFeeding(task, user?.user);
+          return await saveFeeding(task, currentUser);
         case "sleep":
-          return await saveSleep(task, user?.user);
+          return await saveSleep(task, currentUser);
         case "vaccination":
-          return await saveVaccination(task, user?.user);
+          return await saveVaccination(task, currentUser);
         case "doctor_contact":
-          return await saveDoctorContact(task, user?.user);
+          return await saveDoctorContact(task, currentUser);
         case "essentials":
-          return await saveEssentials(task, user?.user);
+          return await saveEssentials(task, currentUser);
         case "memory":
           if (!file) {
-            return {
-              isAction: false,
-              actionName: "Media Required",
-              request: "insert",
-              status: "failed"
-            };
+            return { isAction: false, actionName: "Media Required", request: "insert", status: "failed" };
           }
           const uploadData = await uploadFile();
-          return await saveMemory(task, user?.user, uploadData);
+          return await saveMemory(task, currentUser, uploadData);
         case "notification":
-          return await saveNotification(task, user?.user);
+          return await saveNotification(task, currentUser);
         default:
           return { ...errorMessage, actionName: "Invalid request" };
       }
     };
 
-    const replyMessage = [];
-
+    let replyMessage;
     if (Array.isArray(agent_reply)) {
-      for (let task of agent_reply) {
-        if (task) {
-          replyMessage.push(await saveData(task));
-        } else {
-          replyMessage.push({
-            isAction: false,
-            actionName: task?.actionName || "Invalid request",
-            request: task?.request || "null"
-          });
-        }
-      }
+      replyMessage = await Promise.all(agent_reply.map(task => saveData(task)));
     } else {
-      if (agent_reply) replyMessage.push(await saveData(agent_reply));
-      else replyMessage.push({ ...errorMessage, actionName: "Invalid request" });
+      replyMessage = [agent_reply ? await saveData(agent_reply) : { ...errorMessage, actionName: "Invalid request" }];
     }
 
     console.log("Reply Message:", replyMessage);
-    return Response.json(replyMessage.length > 0 ? replyMessage : { ...errorMessage, actionName: "Invalid request" });
+    return NextResponse.json(replyMessage.length > 0 ? replyMessage : { ...errorMessage, actionName: "Invalid request" });
 
   } catch (err) {
     console.error("Error Occurred:", err);
-    return Response.json({ ...errorMessage, actionName: "Invalid request" }, { status: 500 });
+    return NextResponse.json({ ...errorMessage, actionName: "Internal Server Error" }, { status: 500 });
   }
 }
