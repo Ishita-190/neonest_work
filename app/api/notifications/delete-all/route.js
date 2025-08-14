@@ -1,9 +1,9 @@
-// app/api/notifications/delete-all/route.js
+import { NextResponse } from 'next/server';
+import Vaccine from '@/app/models/Vaccine.model';
+import connectDB from '@/lib/connectDB';
+import { authenticateToken } from '@/lib/auth';
 
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { connectToDatabase } from "@/lib/mongodb"; // Adjust path as needed
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // Adjust path as needed
+await connectDB();
 
 export async function DELETE(request) {
   try {
@@ -17,9 +17,6 @@ export async function DELETE(request) {
       );
     }
 
-    // Connect to database
-    const { db } = await connectToDatabase();
-    
     // Delete all notifications for the user
     const result = await db.collection("notifications").deleteMany({
       userId: session.user.id
@@ -38,40 +35,3 @@ export async function DELETE(request) {
     );
   }
 }
-
-// Alternative implementation if using Mongoose models
-/*
-import Notification from "../../../models/Notification";
-import { connectDB } from "../../../lib/connectDB";
-
-export async function DELETE(request) {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    await connectDB();
-    
-    const result = await Notification.deleteMany({
-      userId: session.user.id
-    });
-
-    return NextResponse.json({
-      message: "All notifications deleted successfully",
-      deletedCount: result.deletedCount
-    });
-
-  } catch (error) {
-    console.error("Error deleting all notifications:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
-}
-*/
