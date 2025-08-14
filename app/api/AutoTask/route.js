@@ -18,7 +18,7 @@ import connectDB from "@/lib/connectDB";
 const genAi = new GoogleGenerativeAI(process.env.GEMINI_API);
 
 export async function POST(req) {
-  await connectDB(); // ✅ Ensure DB is connected first
+  await connectDB(); 
 
   const errorMessage = { isAction: false, request: "failed" };
 
