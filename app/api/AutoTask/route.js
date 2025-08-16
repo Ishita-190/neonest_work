@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import JSONAgent from "@/lib/agent";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import connectDB from "@/lib/connectDB";
 import User from "@/app/models/User.model";
 import { authenticateToken } from "@/lib/auth";
 import { 
